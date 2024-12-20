@@ -1,1 +1,1 @@
-"# Functii" 
+# Functii
