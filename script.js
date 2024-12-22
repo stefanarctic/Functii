@@ -9,10 +9,32 @@ document.onmousemove = (e => {
     mouseY = e.clientY;
 })
 
+let func = "x";
 
-const f = x => {
-    return x;
+const evalFunc = () => {
+    f = x => {
+        const funcText = func.replace('x', x)
+        .replace('arc', '1 / ')
+        .replace('sin', 'Math.sin')
+        .replace('cos', 'Math.cos')
+        .replace('tan', 'Math.tan')
+        .replace('ctg', '1 / Math.tan')
+        .replace('tg', 'Math.tan')
+        // .replace('arcsin', 'Math.asin')
+        // .replace('asin', 'Math.asin')
+        // .replace('arccos', 'Math.acos')
+        // .replace('acos', 'Math.acos')
+        // .replace('arctan', 'Math.atan')
+        // .replace('atan', 'Math.atan')
+        // .replace('arctg', 'Math.atan')
+        // .replace('atg', 'Math.atan')
+
+        const result = eval(funcText);
+        return result;
+    }
 }
+
+let f = x => {}
 
 // const centerX = document.body.clientWidth / 8;
 // const centerY = document.body.clientHeight / 1.1;
@@ -43,7 +65,8 @@ const graph = {
         this.data = [];
     },
     clear: () => {
-        svg.remove();
+        if(this.svg)
+            this.svg.remove();
     },
     getCenterX: () => {
         return this.centerX;
@@ -211,7 +234,28 @@ const graph = {
         //     .attr("d", line(this.data))
         //     .attr("fill", "none")
         //     .attr("stroke", "white");
-    }
+    },
+    // redraw: () => {
+    //     graph.clear();
+    //     graph.init();
+    //     graph.renderBody();
+    //     graph.drawLines();
+    //     graph.drawGraph();
+    //     console.log('Size: ', lineSize);
+    // },
+    // setLineSize: newLineSize => {
+    //     thislineSize = newLineSize;
+    // },
+    // zoomIn: () => {
+    //     console.log('zoomed in', lineSize);
+    //     graph.setLineSize(5);
+    //     graph.redraw();
+    // },
+    // zoomOut: () => {
+    //     console.log('zoomed out', lineSize);
+    //     lineSize -= 1.5;
+    //     graph.redraw();
+    // },
 }
 
 const update = (timestamp) => {
@@ -222,10 +266,14 @@ const update = (timestamp) => {
 }
 
 window.onload = () => {
+    evalFunc();
     graph.init();
+    graph.clear();
     graph.renderBody();
     graph.drawLines();
     graph.drawGraph();
+
+    insertFunctionPopup.init();
 }
 
 window.onresize = () => {
@@ -234,4 +282,94 @@ window.onresize = () => {
     graph.renderBody();
     graph.drawLines();
     graph.drawGraph();
+}
+
+const insertFunctionPopup = {
+    showing: false,
+    htmlElement: document.getElementById('insert-function-div'),
+    inputElement: document.getElementById('insert-function-input'),
+    isShowing: () => {
+        return this.showing;
+    },
+    init: () => {
+        showing = false;
+        htmlElement = document.getElementById('insert-function-div');
+        inputElement = document.getElementById('insert-function-input');
+    },
+    open: () => {
+        console.log('opened window')
+        showing = true;
+        htmlElement.style.display = 'flex';
+        inputElement.focus();
+    },
+    close: () => {
+        showing = false;
+        htmlElement.style.display = 'none';
+        inputElement.value = '';
+    },
+    getText: () => {
+        return inputElement.value;
+    }
+};
+
+const keys = {};
+
+window.onkeydown = e => {
+    if(e.key === 'f')
+    {
+        insertFunctionPopup.open();
+        e.preventDefault();
+    }
+    else if(e.key === 'Enter')
+    {
+        if(insertFunctionPopup.isShowing())
+        {
+            if(insertFunctionPopup.inputElement.value === '')
+                return;
+            // evaluateFunction(insertFunctionPopup.getText());
+            const text = insertFunctionPopup.getText();
+            func = text;
+            evalFunc();
+
+            graph.clear();
+            graph.init();
+            graph.renderBody();
+            graph.drawLines();
+            graph.drawGraph();
+
+            // console.log(func);
+            insertFunctionPopup.close();
+        }
+    }
+    else if(e.key === 'Escape')
+    {
+        if(insertFunctionPopup.isShowing())
+            insertFunctionPopup.close();
+    }
+    // else
+    // {
+    //     keys[e.key] = true;
+    // }
+
+    // if(keys['Control'])
+    // {
+    //     if(keys['='])
+    //     {
+    //         e.preventDefault();
+    //         graph.zoomIn();
+    //     }
+    //     if(keys['-'])
+    //     {
+    //         e.preventDefault();
+    //         graph.zoomOut();
+    //     }
+    // }
+}
+
+window.onkeyup = e => {
+    keys[e.key] = false;
+}
+
+window.onclick = e => {
+
 }
