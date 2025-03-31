@@ -19,97 +19,94 @@ const atan = Math.atan, arctg = atan;
 const arcctg = x => Math.PI / 2 - atan(x), acot = arcctg;
 const PI = Math.PI, pi = PI;
 
+let f = x => 0;
+
 const evalFunc = () => {
-    f = x => {
-        const funcText = func.replace('x', x);
-        const result = eval(funcText);
-        return result * graph.amp;
+    try {
+        f = x => {
+            const funcText = func.replace(/x/g, `(${x})`);
+            return eval(funcText) * graph.amp;
+        };
+    } catch (error) {
+        console.error("Function evaluation error:", error);
+        f = () => 0;
     }
 };
 
-let f = x => { };
-
 const graph = {
     size: 0,
-    posX: 0,
-    posY: 0,
     centerX: 0,
     centerY: 0,
-    endX: 0,
-    endY: 0,
     svg: null,
     data: [],
-    amp: 1,
-    lineThickness: 5,
+    amp: 50,
+    lineThickness: 2,
+    graphThickness: 2,
+    zoom: null,
+    currentTransform: d3.zoomIdentity,
+    
     init: () => {
-        const screenWidth = document.body.clientWidth;
-        const screenHeight = document.body.clientHeight;
-        graph.size = Math.max(screenWidth, screenHeight);
-        graph.centerX = screenWidth / 2;
-        graph.centerY = screenHeight / 2;
-        graph.endX = graph.centerX + graph.size;
-        graph.endY = graph.centerY - graph.size;
-        graph.lineSize = Math.min(screenWidth - 80, screenHeight - 80);
-        graph.amp = 1;
-        graph.lineThickness = 5;
-        graph.graphThickness = 3;
-        graph.svgScale = 1;
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+        graph.centerX = width / 2;
+        graph.centerY = height / 2;
+        graph.size = Math.min(width, height) - 40;
         graph.data = [];
     },
+    
     clear: () => {
-        if (graph.svg) graph.svg.remove();
+        if (graph.svg) graph.svg.selectAll("*").remove();
     },
-    getCenterX: () => graph.centerX,
-    getCenterY: () => graph.centerY,
+    
     renderBody: () => {
-        graph.svg = d3.select("body")
-            .append("svg")
-            .attr("width", "100%")
-            .attr("height", "100%")
-            .style("background-color", "black");
-
-        graph.currentTransform = d3.zoomIdentity;
-
-        const zoomed = e => {
-            graph.currentTransform = e.transform;
-            graph.redrawGraph();
-        };
-
-        graph.zoom = d3.zoom().on("zoom", zoomed);
-        graph.svg.call(graph.zoom);
+        if (!graph.svg) {
+            graph.svg = d3.select("body")
+                .append("svg")
+                .attr("width", "100%")
+                .attr("height", "100%")
+                .style("background-color", "black");
+            
+            graph.zoom = d3.zoom()
+                .scaleExtent([0.5, 5])
+                .on("zoom", (e) => {
+                    graph.currentTransform = e.transform;
+                    d3.select(".zoom-group").attr("transform", e.transform);
+                });
+            
+            graph.svg.call(graph.zoom);
+        }
+        
+        let zoomGroup = graph.svg.select(".zoom-group");
+        if (zoomGroup.empty()) {
+            zoomGroup = graph.svg.append("g").attr("class", "zoom-group");
+        }
+        zoomGroup.attr("transform", graph.currentTransform);
     },
-    drawLines: () => {
-        graph.svg.append("line")
-            .attr("x1", graph.centerX - graph.lineSize / 2)
+    
+    drawAxes: () => {
+        const axisGroup = graph.svg.select(".zoom-group");
+        axisGroup.append("line")
+            .attr("x1", 0)
             .attr("y1", graph.centerY)
-            .attr("x2", graph.centerX + graph.lineSize / 2)
+            .attr("x2", window.innerWidth)
             .attr("y2", graph.centerY)
             .attr("stroke", "white")
-            .attr("stroke-width", graph.lineThickness)
-            .attr("class", "x-axis");
-
-        graph.svg.append("line")
+            .attr("stroke-width", graph.lineThickness);
+        
+        axisGroup.append("line")
             .attr("x1", graph.centerX)
-            .attr("y1", graph.centerY + graph.lineSize / 2)
+            .attr("y1", 0)
             .attr("x2", graph.centerX)
-            .attr("y2", graph.centerY - graph.lineSize / 2)
+            .attr("y2", window.innerHeight)
             .attr("stroke", "white")
-            .attr("stroke-width", graph.lineThickness)
-            .attr("class", "y-axis");
+            .attr("stroke-width", graph.lineThickness);
     },
+    
     drawGraph: () => {
         graph.data = [];
-        const beginX = graph.centerX - graph.lineSize / 2;
-        const beginY = graph.centerY + graph.lineSize / 2;
-        const endX = graph.centerX + graph.lineSize / 2;
-        const endY = graph.centerY - graph.lineSize / 2;
-
-        let yCoord = beginY;
-        for (let xCoord = beginX; xCoord <= endX; xCoord++, yCoord--) {
-            let a = -(yCoord - graph.centerY);
-            let yPos = graph.centerY - f(a);
-            const transformedPoint = graph.currentTransform.apply([xCoord, yPos]);
-            graph.data.push({ x: transformedPoint[0], y: transformedPoint[1] });
+        const step = 2;
+        for (let x = -graph.centerX; x < graph.centerX; x += step) {
+            graph.data.push({ x: graph.centerX + x, y: graph.centerY - f(x / 50) * 50 });
         }
 
         const line = d3.line()
@@ -117,126 +114,37 @@ const graph = {
             .y(d => d.y)
             .curve(d3.curveBasis);
 
-        graph.svg.append("path")
-            .attr("d", line(graph.data))
+        graph.svg.select(".zoom-group").append("path")
+            .datum(graph.data)
             .attr("fill", "none")
+            .attr("stroke", "red")
             .attr("stroke-width", graph.graphThickness)
-            .attr("stroke", "red");
+            .attr("d", line);
     },
-    getZoom: () => graph.zoom,
-    getSVG: () => graph.svg,
+    
     redrawGraph: () => {
         graph.clear();
         graph.renderBody();
-        graph.drawLines();
+        graph.drawAxes();
         graph.drawGraph();
     }
 };
 
-const zoomIn = () => {
-    // graph.amp *= 2;
-    graph.lineSize *= 1.5;
-    graph.amp += 5;
-    // graph.lineThickness -= 5;
-    console.log('Zoomed in', graph.lineSize);
-    graph.redrawGraph();
-    // console.log('Zoomed in', graph.amp);
-    // graph.getZoom().scaleBy(graph.getSVG(), 2);
-
-};
-
-const zoomOut = () => {
-    graph.lineSize /= 1.5;
-    console.log('Zoomed out', graph.lineSize);
-    graph.redrawGraph();
-    // graph.getZoom().scaleBy(graph.getSVG(), 0.5);
-};
-
-const update = (timestamp) => {
-    const now = Date.now();
-    const time = new Date(now - initialDate);
-};
-
-const redrawGraphAndInit = () => {
-    graph.clear();
-    graph.init();
-    graph.redrawGraph();
-};
+const zoomIn = () => graph.svg.transition().duration(200).call(graph.zoom.scaleBy, 1.2);
+const zoomOut = () => graph.svg.transition().duration(200).call(graph.zoom.scaleBy, 0.8);
 
 window.onload = () => {
     evalFunc();
     graph.init();
     graph.redrawGraph();
-    insertFunctionPopup.init();
 };
 
 window.onresize = () => {
-    redrawGraphAndInit();
+    graph.init();
+    graph.redrawGraph();
 };
-
-const insertFunctionPopup = {
-    showing: false,
-    htmlElement: document.getElementById('insert-function-div'),
-    inputElement: document.getElementById('insert-function-input'),
-    isShowing: () => this.showing,
-    init: () => {
-        showing = false;
-        htmlElement = document.getElementById('insert-function-div');
-        inputElement = document.getElementById('insert-function-input');
-    },
-    open: () => {
-        showing = true;
-        htmlElement.style.display = 'flex';
-        inputElement.focus();
-    },
-    close: () => {
-        showing = false;
-        htmlElement.style.display = 'none';
-        inputElement.value = '';
-    },
-    getText: () => inputElement.value
-};
-
-const keys = {};
 
 window.onkeydown = e => {
-    keys[e.key] = true;
-
-    if (e.key === 'f') {
-        insertFunctionPopup.open();
-        e.preventDefault();
-    } else if (e.key === 'Enter' && insertFunctionPopup.isShowing()) {
-        if (insertFunctionPopup.inputElement.value !== '') {
-            func = insertFunctionPopup.getText();
-            console.log('Function is ', func);
-            evalFunc();
-            redrawGraphAndInit();
-            insertFunctionPopup.close();
-        }
-    } else if (e.key === 'Escape' && insertFunctionPopup.isShowing()) {
-        insertFunctionPopup.close();
-    }
-
-    if (keys['Control']) {
-        if(keys['='])
-        {
-            e.preventDefault();
-            zoomIn();
-        }
-        else if(keys['-'])
-        {
-            e.preventDefault();
-            zoomOut();
-        }
-    }
-    if (e.key === 'Control' && e.key === '-') {
-        e.preventDefault();
-        zoomOut();
-    }
+    if (e.key === '+') zoomIn();
+    if (e.key === '-') zoomOut();
 };
-
-window.onkeyup = e => {
-    keys[e.key] = false;
-};
-
-window.onclick = e => { };
