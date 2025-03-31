@@ -41,6 +41,7 @@ const graph = {
     data: [],
     amp: 1,
     lineThickness: 5,
+    step: 5,
     init: () => {
         const screenWidth = document.body.clientWidth;
         const screenHeight = document.body.clientHeight;
@@ -50,9 +51,10 @@ const graph = {
         graph.endX = graph.centerX + graph.size;
         graph.endY = graph.centerY - graph.size;
         graph.lineSize = Math.min(screenWidth - 80, screenHeight - 80);
-        graph.amp = 1;
-        graph.lineThickness = 5;
+        graph.amp = 8;
+        graph.lineThickness = 3;
         graph.graphThickness = 3;
+        graph.step = 5;
         graph.svgScale = 1;
         graph.data = [];
     },
@@ -104,8 +106,9 @@ const graph = {
         const endX = graph.centerX + graph.lineSize / 2;
         const endY = graph.centerY - graph.lineSize / 2;
 
+
         let yCoord = beginY;
-        for (let xCoord = beginX; xCoord <= endX; xCoord++, yCoord--) {
+        for (let xCoord = beginX; xCoord <= endX; xCoord += graph.step, yCoord -= graph.step) {
             let a = -(yCoord - graph.centerY);
             let yPos = graph.centerY - f(a);
             const transformedPoint = graph.currentTransform.apply([xCoord, yPos]);
@@ -134,10 +137,14 @@ const graph = {
 };
 
 const zoomIn = () => {
-    // graph.amp *= 2;
+    // graph.svg.transition().duration(200)
+    //     .call(graph.zoom.scaleBy, 1.5);
+
     graph.lineSize *= 1.5;
     graph.amp += 5;
-    // graph.lineThickness -= 5;
+    // graph.graphThickness /= 1.2;
+    // graph.lineThickness /= 1.2;
+    graph.step += 2;
     console.log('Zoomed in', graph.lineSize);
     graph.redrawGraph();
     // console.log('Zoomed in', graph.amp);
@@ -146,7 +153,14 @@ const zoomIn = () => {
 };
 
 const zoomOut = () => {
+    // graph.svg.transition().duration(200)
+    //     .call(graph.zoom.scaleBy, 0.67);
+    
     graph.lineSize /= 1.5;
+    graph.amp -= 5;
+    // graph.graphThickness *= 1.2;
+    // graph.lineThickness *= 1.2;
+    graph.step -= 2;
     console.log('Zoomed out', graph.lineSize);
     graph.redrawGraph();
     // graph.getZoom().scaleBy(graph.getSVG(), 0.5);
